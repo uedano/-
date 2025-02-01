@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>投票結果プレビュー</title>
+  <!-- Google Fonts: Noto Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* 全体の基本設定 */
+    body {
+      font-family: 'Noto Sans', sans-serif;
+      background: #ffffff;
+      color: #000;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 50px 20px;
+    }
+    h1 {
+      font-size: 3em;
+      margin-bottom: 20px;
+    }
+    p {
+      font-size: 1.2em;
+      margin-bottom: 40px;
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 8px;
+      background-color: #FF6F61;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #ff8a75;
+    }
+    /* 横並びに配置 */
+    .results {
+      margin-top: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .result-box {
+      width: 200px;
+      padding: 20px;
+      margin: 20px;
+      border: 2px solid #000;
+      border-radius: 12px;
+      background: #f9f9f9;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .result-box h2 {
+      margin: 0 0 10px;
+      font-size: 1.5em;
+    }
+    /* 発表者の票数のみ赤 */
+    .result-box span {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: red;
+    }
+    /* 結果発表画面 */
+    #resultContainer {
+      display: none;
+    }
+    #finalResult {
+      margin-top: 50px;
+      font-size: 3em;
+      font-weight: 900;
+      color: red;
+      text-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <!-- プレビュー画面 -->
+  <div id="previewContainer" class="container">
+    <h1>投票結果プレビュー</h1>
+    <p>サンプルデータ: 発表者A: 10票, 発表者B: 5票, 発表者C: 20票</p>
+    <button id="previewButton">結果発表開始</button>
+    <div class="results">
+      <div class="result-box">
+        <h2>発表者A</h2>
+        <span id="resultA">0</span>票
+      </div>
+      <div class="result-box">
+        <h2>発表者B</h2>
+        <span id="resultB">0</span>票
+      </div>
+      <div class="result-box">
+        <h2>発表者C</h2>
+        <span id="resultC">0</span>票
+      </div>
+    </div>
+  </div>
+  
+  <!-- 結果発表画面 -->
+  <div id="resultContainer" class="container">
+    <h1>結果発表</h1>
+    <div id="finalResult"></div>
+  </div>
+  
+  <script>
+    // サウンド制御：Web Audio API を利用してカウントアップ中に音を出す
+    let audioCtx, oscillator;
+    
+    function startSound() {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      oscillator = audioCtx.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 440; // 440Hz: A4の音
+      oscillator.connect(audioCtx.destination);
+      oscillator.start();
+    }
+    
+    function stopSound() {
+      if (oscillator) {
+        oscillator.stop();
+        oscillator.disconnect();
+      }
+      if (audioCtx) {
+        audioCtx.close();
+      }
+    }
+    
+    /**
+     * animateCount: 指定の要素の数値を0からtargetまで、1秒あたりの増加数(rate)に基づきアニメーションします。
+     * @param {HTMLElement} element - カウント表示用要素
+     * @param {number} target - 最終票数
+     * @param {number} rate - 1秒あたりの票数 (例: 5票/秒)
+     * @returns {Promise}
+     */
+    function animateCount(element, target, rate) {
+      return new Promise(resolve => {
+        const duration = (target / rate) * 1000;  // ミリ秒換算
+        const startTime = performance.now();
+        function update(currentTime) {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const count = Math.floor(progress * target);
+          element.textContent = count;
+          if (progress < 1) {
+            requestAnimationFrame(update);
+          } else {
+            element.textContent = target;
+            resolve();
+          }
+        }
+        requestAnimationFrame(update);
+      });
+    }
+    
+    document.getElementById('previewButton').addEventListener('click', async function() {
+      // サンプルデータ
+      const sampleVotes = { A: 10, B: 5, C: 20 };
+      const rate = 5;  // 1秒あたり5票
+      
+      // 各表示エリアの初期化
+      document.getElementById('resultA').textContent = '0';
+      document.getElementById('resultB').textContent = '0';
+      document.getElementById('resultC').textContent = '0';
+      
+      // カウントアップ中の音を開始
+      startSound();
+      
+      // 各候補者のカウントアップを同時に開始（Promise.allで最も長いアニメーションが終了するのを待つ）
+      const promiseA = animateCount(document.getElementById('resultA'), sampleVotes.A, rate);
+      const promiseB = animateCount(document.getElementById('resultB'), sampleVotes.B, rate);
+      const promiseC = animateCount(document.getElementById('resultC'), sampleVotes.C, rate);
+      
+      await Promise.all([promiseA, promiseB, promiseC]);
+      
+      // カウントアップ終了後、音を停止
+      stopSound();
+      
+      // 各候補者の票数から勝者を決定
+      let winner = '';
+      let maxVotes = 0;
+      for (let candidate in sampleVotes) {
+        if (sampleVotes[candidate] > maxVotes) {
+          maxVotes = sampleVotes[candidate];
+          winner = candidate;
+        }
+      }
+      
+      // 最終結果がわかったタイミングで2秒間の停止を実施
+      setTimeout(function() {
+        // プレビュー画面を非表示、結果発表画面を表示
+        document.getElementById('previewContainer').style.display = 'none';
+        document.getElementById('finalResult').textContent = "勝者は 発表者" + winner + " です！（得票数：" + maxVotes + "票）";
+        document.getElementById('resultContainer').style.display = 'block';
+      }, 2000);
+    });
+  </script>
+</body>
+</html>

@@ -114,12 +114,13 @@
   <script>
     // サウンド制御：Web Audio API を利用してカウントアップ中に音を出す
     let audioCtx, oscillator;
+    const notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25]; // ドレミファソラシドの周波数
     
-    function startSound() {
+    function startSound(noteIndex) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       oscillator = audioCtx.createOscillator();
       oscillator.type = 'sine';
-      oscillator.frequency.value = 440; // 440Hz: A4の音
+      oscillator.frequency.value = notes[noteIndex % notes.length]; // ドレミファソラシドの音
       oscillator.connect(audioCtx.destination);
       oscillator.start();
     }
@@ -172,7 +173,7 @@
       document.getElementById('resultC').textContent = '0';
       
       // カウントアップ中の音を開始
-      startSound();
+      startSound(0);
       
       // 各候補者のカウントアップを同時に開始（Promise.allで最も長いアニメーションが終了するのを待つ）
       const promiseA = animateCount(document.getElementById('resultA'), sampleVotes.A, rate);
